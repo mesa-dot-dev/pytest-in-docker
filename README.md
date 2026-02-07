@@ -1,6 +1,7 @@
 # pytest-inside-docker
 
-A pytest plugin that runs your tests inside Docker containers. Write tests normally, decorate them, and they execute in any container image you choose.
+A pytest plugin that runs your tests inside Docker containers. Write tests normally,
+decorate them, and they execute in any container image you choose.
 
 ## Install
 
@@ -37,21 +38,6 @@ Then run as usual:
 ```bash
 pytest
 ```
-
-## How it works
-
-1. Spins up a Docker container from your image (via [testcontainers](https://testcontainers-python.readthedocs.io/))
-2. Bootstraps an [RPyC](https://rpyc.readthedocs.io/) server inside the container
-3. Teleports your test function to the container and executes it
-4. Returns the result (pass/fail/exception) back to the host
-
-Tests are recompiled from source before teleportation to strip pytest's assertion rewriting, which would otherwise break remote execution.
-
-## Requirements
-
-- Python >= 3.14
-- Docker
-- pytest >= 9
 
 ## License
 

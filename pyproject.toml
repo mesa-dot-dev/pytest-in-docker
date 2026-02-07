@@ -28,6 +28,7 @@ select = ["ALL"]
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = [
     "S", # It's tests, no need for security
+    "PLC0415", # imports need to be late for pytest_inside_docker to work.
 ]
 
 [tool.ruff.format]
@@ -39,4 +40,10 @@ reportAny = false
 reportExplicitAny = false
 reportUnknownMemberType = false
 reportUnknownVariableType = false
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1.408",
+    "ruff>=0.15.0",
+]
 
