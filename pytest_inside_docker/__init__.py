@@ -1,5 +1,9 @@
-from collections.abc import Generator
 from dataclasses import dataclass
+import io
+import pathlib
+import shlex
+import tarfile
+import time
 from testcontainers.core.container import DockerContainer
 from testcontainers.core.image import DockerImage
 import functools
@@ -58,37 +62,42 @@ def _build_container_spec_from_args(*args: str, **kwargs: str) -> ContainerSpec:
 _PORT = 51337
 
 
+def yoinks(content: str, path: pathlib.Path, c: DockerContainer) -> None:
+    tar_stream = io.BytesIO()
+    with tarfile.open(fileobj=tar_stream, mode="w") as tar:
+        tarinfo = tarfile.TarInfo(name="yoinks.txt")
+        tarinfo.size = len(content)
+        tar.addfile(tarinfo, io.BytesIO(content.encode("utf-8")))
+    _ = tar_stream.seek(0)
+
+    if c._container is None:
+        msg = "Container is not running."
+        raise RuntimeError(msg)
+
+    _ = c._container.put_archive(path="/tmp", data=tar_stream.read())
+    if (res := c.exec(["mv", "/tmp/yoinks.txt", str(path)])).exit_code != 0:
+        msg = f"Failed to move temporary file to destination: {res.output}"
+        raise ContainerPrepareError(msg)
+
+
 def _bootstrap_container(c: DockerContainer) -> Any:
+    def run_or_fail(cmd: list[str] | str, error_msg: str) -> None:
+        res = c.exec(cmd)
+        if res.exit_code != 0:
+            msg = f"{error_msg}: Error: {res.output}"
+            raise ContainerPrepareError(msg)
+
     # First things first, we need to make sure the container has python.
-    if c.exec("which python3").exit_code != 0:
-        msg = "The specified container does not have python installed."
-        raise ContainerPrepareError(msg)
-
-    # TOOD(markovejnovic): There are other ways to install rpyc, but this
-    # is what we have for now.
-    # Cool, let's check for pip as well.
-    if c.exec("which pip3").exit_code != 0:
-        msg = "The specified container does not have pip installed."
-        raise ContainerPrepareError(msg)
-
-    # Cool, let's install rpyc.
-    if c.exec("pip3 install rpyc").exit_code != 0:
-        msg = "Failed to install rpyc in the container."
-        raise ContainerPrepareError(msg)
-
-    # With rpyc installed, we will deploy our server on the container and
-    # connect to it from the host.
-    if c.exec(f"echo '{_rpyc_server}' > /tmp/rpyc_server.py").exit_code != 0:
-        msg = "Failed to deploy rpyc server on the container."
-        raise ContainerPrepareError(msg)
-
-    if c.exec("python3 /tmp/rpyc_server.py &").exit_code != 0:
-        msg = "Failed to start rpyc server on the container."
-        raise ContainerPrepareError(msg)
+    run_or_fail(["which", "python"], "No python3 installed in the container.")
+    run_or_fail(["which", "pip"], "No pip3 installed in the container.")
+    run_or_fail(["pip3", "install", "rpyc", "pytest"], "Fail install container deps.")
+    yoinks(_rpyc_server, pathlib.Path("/tmp/rpyc_server.py"), c)
+    run_or_fail(["sh", "-c", "python3 /tmp/rpyc_server.py &"],
+                "Failed to start rpyc server on the container.")
 
     # Cool, let's sanity check that we can talk to the server.
-    conn = rpyc.connect(c.get_container_host_ip(),
-                        c.get_exposed_port(_PORT))
+    conn = rpyc.classic.connect(c.get_container_host_ip(),
+                                c.get_exposed_port(_PORT))
     lo = conn.teleport(loopback)
     if lo("hello") != "hello":
         msg = "Failed to communicate with rpyc server on the container."
@@ -99,9 +108,9 @@ def _bootstrap_container(c: DockerContainer) -> Any:
 
 _rpyc_server = f"""
 from rpyc.utils.server import ThreadedServer
-from rpyc import SlaveService
+from rpyc import SlaveService as ChildService
 
-server = ThreadedServer(SlaveService, port={_PORT})
+server = ThreadedServer(ChildService, port={_PORT})
 server.start()
 """
 
@@ -126,8 +135,16 @@ def in_container(*args: str, **kwargs: str) -> Callable[[Callable[P, T]], Callab
                 return test(*args, **kwargs)
 
             def run_image_spec(image: ImageSpec) -> T:
-                with DockerContainer(image.image) as container:
-                    return run_in_container(container)
+                with DockerContainer(image.image) \
+                    .with_command("sleep infinity") \
+                    .with_exposed_ports(_PORT) \
+                as container:
+                    container = container.start()
+
+                    res = run_in_container(container)
+
+                    container.stop()
+                    return res
 
             def run_build_spec(build_spec: BuildSpec) -> T:
                 with DockerImage(path=build_spec.path, tag=build_spec.tag) as image:
