@@ -30,8 +30,6 @@ Or with [uv](https://docs.astral.sh/uv/):
 uv add pytest-in-docker
 ```
 
-Requires Docker running on the host.
-
 ## Quick Start
 
 Decorate any test function. It runs inside a Docker container:
