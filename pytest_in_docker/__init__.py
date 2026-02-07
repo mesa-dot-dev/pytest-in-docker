@@ -1,7 +1,7 @@
-"""pytest-inside-docker: Run pytest tests inside Docker containers."""
+"""pytest-in-docker: Run pytest tests inside Docker containers."""
 
-from pytest_inside_docker._decorator import in_container
-from pytest_inside_docker._types import (
+from pytest_in_docker._decorator import in_container
+from pytest_in_docker._types import (
     BuildSpec,
     ContainerPrepareError,
     ContainerSpec,

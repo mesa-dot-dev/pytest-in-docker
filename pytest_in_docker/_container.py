@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 import rpyc
 
-from pytest_inside_docker._types import ContainerPrepareError
+from pytest_in_docker._types import ContainerPrepareError
 
 if TYPE_CHECKING:
     from testcontainers.core.container import DockerContainer

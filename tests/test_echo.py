@@ -1,6 +1,6 @@
-"""Tests for pytest-inside-docker plugin."""
+"""Tests for pytest-in-docker plugin."""
 
-from pytest_inside_docker import in_container
+from pytest_in_docker import in_container
 
 
 @in_container("python:alpine")

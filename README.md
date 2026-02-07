@@ -1,4 +1,4 @@
-# pytest-inside-docker
+# pytest-in-docker
 
 A pytest plugin that runs your tests inside Docker containers. Write tests normally,
 decorate them, and they execute in any container image you choose.
@@ -6,7 +6,7 @@ decorate them, and they execute in any container image you choose.
 ## Install
 
 ```bash
-pip install pytest-inside-docker
+pip install pytest-in-docker
 ```
 
 Requires Docker running on the host.
@@ -16,7 +16,7 @@ Requires Docker running on the host.
 ### Run a test inside a container image
 
 ```python
-from pytest_inside_docker import in_container
+from pytest_in_docker import in_container
 
 @in_container("python:alpine")
 def test_runs_on_alpine():

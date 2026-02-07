@@ -1,1 +1,1 @@
-"""Test suite for pytest-inside-docker."""
+"""Test suite for pytest-in-docker."""

@@ -1,5 +1,5 @@
 [project]
-name = "pytest-inside-docker"
+name = "pytest-in-docker"
 version = "0.1.0"
 description = "Seamlessly run pytest tests inside docker containers"
 license = "MIT"
@@ -16,7 +16,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project.entry-points.pytest11]
-inside_docker = "pytest_inside_docker"
+in_docker = "pytest_in_docker"
 
 [tool.ruff]
 target-version = "py314"
@@ -28,7 +28,7 @@ select = ["ALL"]
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = [
     "S", # It's tests, no need for security
-    "PLC0415", # imports need to be late for pytest_inside_docker to work.
+    "PLC0415", # imports need to be late for pytest_in_docker to work.
 ]
 
 [tool.ruff.format]

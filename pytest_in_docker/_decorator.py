@@ -8,8 +8,8 @@ from typing import Any, ParamSpec, TypeVar, overload
 from testcontainers.core.container import DockerContainer
 from testcontainers.core.image import DockerImage
 
-from pytest_inside_docker._container import RPYC_PORT, bootstrap_container
-from pytest_inside_docker._types import (
+from pytest_in_docker._container import RPYC_PORT, bootstrap_container
+from pytest_in_docker._types import (
     BuildSpec,
     ContainerSpec,
     ImageSpec,
