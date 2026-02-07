@@ -1,11 +1,8 @@
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
 [project]
 name = "pytest-inside-docker"
 version = "0.1.0"
 description = "Add your description here"
+license = "MIT"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
@@ -13,6 +10,10 @@ dependencies = [
     "rpyc>=6.0.2",
     "testcontainers>=4.14.1",
 ]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project.entry-points.pytest11]
 inside_docker = "pytest_inside_docker"
