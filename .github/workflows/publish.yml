@@ -11,27 +11,32 @@ jobs:
     environment: pypi
     permissions:
       id-token: write
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
 
       - uses: astral-sh/setup-uv@v5
         with:
           python-version-file: ".python-version"
 
-      - name: Verify tag matches package version
+      - name: Update version from tag
         run: |
-          PACKAGE_VERSION=$(uv run python -c "
-          import tomllib
-          with open('pyproject.toml', 'rb') as f:
-              print(tomllib.load(f)['project']['version'])
-          ")
           TAG_VERSION="${GITHUB_REF_NAME#v}"
-          if [ "$PACKAGE_VERSION" != "$TAG_VERSION" ]; then
-            echo "::error::Tag version ($TAG_VERSION) does not match package version ($PACKAGE_VERSION)"
-            exit 1
+          sed -i 's/^version = ".*"/version = "'"$TAG_VERSION"'"/' pyproject.toml
+          echo "Version set to: $TAG_VERSION"
+
+          if git diff --quiet pyproject.toml; then
+            echo "Version already matches tag, no commit needed"
+          else
+            git config user.name "mesa-ci[bot]"
+            git config user.email "ci-bot@mesa.dev"
+            git add pyproject.toml
+            git commit -m "chore: bump version to $TAG_VERSION"
+            git push origin main
           fi
-          echo "Version verified: $PACKAGE_VERSION"
 
       - name: Build package
         run: uv build
