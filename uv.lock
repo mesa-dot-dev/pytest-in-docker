@@ -155,7 +155,7 @@ wheels = [
 ]
 
 [[package]]
-name = "pytest-inside-docker"
+name = "pytest-in-docker"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
