@@ -17,8 +17,7 @@
 </div>
 
 <div align="center">
-  <p>Write your tests normally. Decorate them. They run inside any Docker container.<br/>
-  Built on <a href="https://rpyc.readthedocs.io/">RPyC</a> and <a href="https://testcontainers-python.readthedocs.io/">testcontainers</a>.</p>
+  <p>Run pytest tests inside docker containers</p>
 </div>
 
 ---
