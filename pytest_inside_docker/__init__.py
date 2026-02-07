@@ -1,8 +1,10 @@
 from dataclasses import dataclass
+import inspect
 import io
 import pathlib
 import shlex
 import tarfile
+import textwrap
 import time
 from testcontainers.core.container import DockerContainer
 from testcontainers.core.image import DockerImage
@@ -114,6 +116,21 @@ server = ThreadedServer(ChildService, port={_PORT})
 server.start()
 """
 
+def _get_clean_func[T: Callable[..., Any]](func: T) -> T:
+    """Recompile a function from source to strip pytest's assertion rewriting."""
+    source = textwrap.dedent(inspect.getsource(func))
+    # Strip decorator lines to get just the def
+    lines = source.splitlines()
+    for i, line in enumerate(lines):
+        if line.lstrip().startswith("def "):
+            source = "\n".join(lines[i:])
+            break
+    code = compile(source, inspect.getfile(func), "exec")
+    ns: dict[str, Any] = {}
+    exec(code, ns)  # noqa: S102
+    return ns[func.__name__]
+
+
 def loopback[T](value: T) -> T:
     return value
 
@@ -131,7 +148,8 @@ def in_container(*args: str, **kwargs: str) -> Callable[[Callable[P, T]], Callab
     def decorator(func: Callable[P, T]) -> Callable[P, T]:
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             def run_in_container(c: DockerContainer) -> T:
-                test = _bootstrap_container(c).teleport(func)
+                clean = _get_clean_func(func)
+                test = _bootstrap_container(c).teleport(clean)
                 return test(*args, **kwargs)
 
             def run_image_spec(image: ImageSpec) -> T:

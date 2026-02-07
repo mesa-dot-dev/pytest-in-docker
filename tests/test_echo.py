@@ -1,4 +1,3 @@
-"""PYTEST_DONT_REWRITE"""
 import pytest
 from pytest_inside_docker import in_container
 
