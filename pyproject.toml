@@ -1,7 +1,7 @@
 [project]
 name = "pytest-inside-docker"
 version = "0.1.0"
-description = "Add your description here"
+description = "Seamlessly run pytest tests inside docker containers"
 license = "MIT"
 readme = "README.md"
 requires-python = ">=3.14"
