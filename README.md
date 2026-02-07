@@ -16,10 +16,6 @@
 
 </div>
 
-<div align="center">
-  <p>Run pytest tests inside docker containers</p>
-</div>
-
 ---
 
 ## Install
