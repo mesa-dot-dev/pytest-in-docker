@@ -141,10 +141,7 @@ def in_container(*args: str, **kwargs: str) -> Callable[[Callable[P, T]], Callab
                 as container:
                     container = container.start()
 
-                    res = run_in_container(container)
-
-                    container.stop()
-                    return res
+                    return run_in_container(container)
 
             def run_build_spec(build_spec: BuildSpec) -> T:
                 with DockerImage(path=build_spec.path, tag=build_spec.tag) as image:
