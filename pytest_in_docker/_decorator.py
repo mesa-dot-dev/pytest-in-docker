@@ -12,10 +12,9 @@ from pytest_in_docker._container import RPYC_PORT, bootstrap_container
 from pytest_in_docker._types import (
     BuildSpec,
     ContainerFactory,
-    ContainerSpec,
     FactorySpec,
     ImageSpec,
-    InvalidContainerSpecError,
+    build_container_spec_from_args,
 )
 
 P = ParamSpec("P")
@@ -46,23 +45,6 @@ def in_container(*, path: str, tag: str) -> Callable[[Callable[P, T]], Callable[
 
 @overload
 def in_container(*, factory: ContainerFactory) -> Callable[[Callable[P, T]], Callable[P, T]]: ...
-
-
-def _build_spec(
-    image: str | None,
-    path: str | None,
-    tag: str | None,
-    factory: ContainerFactory | None,
-) -> ContainerSpec:
-    """Build a ContainerSpec from the arguments passed to in_container."""
-    if factory is not None:
-        return FactorySpec(factory=factory)
-    if image is not None:
-        return ImageSpec(image=image)
-    if path is not None and tag is not None:
-        return BuildSpec(path=path, tag=tag)
-    msg = "Expected in_container(image), in_container(path=..., tag=...), or in_container(factory=...)."
-    raise InvalidContainerSpecError(msg)
 
 
 def in_container(
@@ -131,7 +113,7 @@ def in_container(
         InvalidContainerSpecError: If the arguments don't match any of the
             three supported modes.
     """
-    container_spec = _build_spec(image=image, path=path, tag=tag, factory=factory)
+    container_spec = build_container_spec_from_args(image, path=path, tag=tag, factory=factory)
 
     def decorator(func: Callable[P, T]) -> Callable[P, T]:
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:

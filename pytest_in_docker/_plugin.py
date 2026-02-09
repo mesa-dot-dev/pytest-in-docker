@@ -12,6 +12,7 @@ from pytest_in_docker._decorator import _get_clean_func
 from pytest_in_docker._types import (
     BuildSpec,
     ContainerSpec,
+    FactorySpec,
     ImageSpec,
     InvalidContainerSpecError,
     NoContainerSpecifiedError,
@@ -73,6 +74,10 @@ def _run_test_in_container(
         ):
             started = container.start()
             remote_func = bootstrap_container(started).teleport(clean)
+            remote_func(**test_kwargs)
+    elif isinstance(container_spec, FactorySpec):
+        with container_spec.factory() as container:
+            remote_func = bootstrap_container(container).teleport(clean)
             remote_func(**test_kwargs)
     else:
         msg = "Invalid container specification."

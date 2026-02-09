@@ -3,7 +3,7 @@
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, overload
 
 if TYPE_CHECKING:
     from testcontainers.core.container import DockerContainer
@@ -49,22 +49,43 @@ class FactorySpec:
 ContainerSpec = ImageSpec | BuildSpec | FactorySpec
 
 
-def build_container_spec_from_args(*args: str, **kwargs: str) -> ContainerSpec:
+@overload
+def build_container_spec_from_args(image: str) -> ImageSpec: ...
+
+
+@overload
+def build_container_spec_from_args(*, path: str, tag: str) -> BuildSpec: ...
+
+
+@overload
+def build_container_spec_from_args(*, factory: ContainerFactory) -> FactorySpec: ...
+
+
+@overload
+def build_container_spec_from_args(
+    image: str | None = None,
+    *,
+    path: str | None = None,
+    tag: str | None = None,
+    factory: ContainerFactory | None = None,
+) -> ContainerSpec: ...
+
+
+def build_container_spec_from_args(
+    image: str | None = None,
+    *,
+    path: str | None = None,
+    tag: str | None = None,
+    factory: ContainerFactory | None = None,
+) -> ContainerSpec:
     """Parse positional and keyword arguments into a ContainerSpec."""
-    match args, kwargs:
-        case (image,), {}:
-            return ImageSpec(image=image)
-        case (), {"image": image}:
-            return ImageSpec(image=image)
-        case (path, tag), {}:
-            return BuildSpec(path=path, tag=tag)
-        case (), {"path": path, "tag": tag}:
-            return BuildSpec(path=path, tag=tag)
-        case (path,), {"tag": tag}:
-            return BuildSpec(path=path, tag=tag)
-        case _:
-            msg = (
-                f"Invalid container spec: got args={args}, kwargs={kwargs}. "
-                f"Expected (image: str) or (path: str, tag: str)."
-            )
-            raise InvalidContainerSpecError(msg)
+    if factory is not None:
+        return FactorySpec(factory=factory)
+    if image is not None:
+        return ImageSpec(image=image)
+    if path is not None and tag is not None:
+        return BuildSpec(path=path, tag=tag)
+    msg = (
+        "Expected (image: str), (path: str, tag: str), or (factory: ContainerFactory)."
+    )
+    raise InvalidContainerSpecError(msg)
