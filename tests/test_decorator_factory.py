@@ -8,16 +8,15 @@ from typing import TYPE_CHECKING
 from testcontainers.core.container import DockerContainer
 
 from pytest_in_docker import in_container
-from pytest_in_docker._container import RPYC_PORT
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
 
 @contextmanager
-def alpine_factory() -> Iterator[DockerContainer]:
+def alpine_factory(port: int) -> Iterator[DockerContainer]:
     """Create and start a python:alpine container."""
-    with DockerContainer("python:alpine").with_command("sleep infinity").with_exposed_ports(RPYC_PORT) as container:
+    with DockerContainer("python:alpine").with_command("sleep infinity").with_exposed_ports(port) as container:
         container.start()
         yield container
 
@@ -32,12 +31,12 @@ def test_factory_runs_in_alpine() -> None:
 
 
 @contextmanager
-def env_factory() -> Iterator[DockerContainer]:
+def env_factory(port: int) -> Iterator[DockerContainer]:
     """Create a container with a custom environment variable."""
     with (
         DockerContainer("python:alpine")
         .with_command("sleep infinity")
-        .with_exposed_ports(RPYC_PORT)
+        .with_exposed_ports(port)
         .with_env("MY_TEST_VAR", "hello_from_factory") as container
     ):
         container.start()

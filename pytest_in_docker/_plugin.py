@@ -76,7 +76,7 @@ def _run_test_in_container(
             remote_func = bootstrap_container(started).teleport(clean)
             remote_func(**test_kwargs)
     elif isinstance(container_spec, FactorySpec):
-        with container_spec.factory() as container:
+        with container_spec.factory(RPYC_PORT) as container:
             remote_func = bootstrap_container(container).teleport(clean)
             remote_func(**test_kwargs)
     else:

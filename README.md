@@ -132,15 +132,14 @@ from typing import Iterator
 from testcontainers.core.container import DockerContainer
 
 from pytest_in_docker import in_container
-from pytest_in_docker._container import RPYC_PORT
 
 
 @contextmanager
-def my_container() -> Iterator[DockerContainer]:
+def my_container(port: int) -> Iterator[DockerContainer]:
     with (
         DockerContainer("python:alpine")
         .with_command("sleep infinity")
-        .with_exposed_ports(RPYC_PORT)
+        .with_exposed_ports(port)
         .with_env("APP_ENV", "test") as container
     ):
         container.start()
@@ -154,7 +153,7 @@ def test_env_is_set():
     assert os.environ["APP_ENV"] == "test"
 ```
 
-A factory is any zero-argument callable that returns a context manager yielding an already-started `DockerContainer`. The container must expose `RPYC_PORT` and run `sleep infinity` so the test framework can connect.
+A factory is a callable that accepts a `port: int` argument and returns a context manager yielding an already-started `DockerContainer`. The framework passes the communication port automatically — the factory just needs to expose it and run `sleep infinity`.
 
 ## How It Works
 
@@ -212,7 +211,7 @@ def test_something():
 
 ### `in_container(factory)`
 
-Decorator. Runs the test inside a container created by `factory`, a `ContainerFactory` — a zero-argument callable returning a context manager that yields a started `DockerContainer`.
+Decorator. Runs the test inside a container created by `factory`, a `ContainerFactory` — a callable that accepts a `port: int` and returns a context manager yielding a started `DockerContainer`.
 
 ```python
 @in_container(factory=my_container)

@@ -85,13 +85,15 @@ def in_container(
         def test_something():
             ...
 
-    The factory is a zero-argument callable that returns a context manager
-    yielding an **already-started** ``DockerContainer``::
+    The factory accepts a ``port: int`` argument (the communication port
+    the framework needs exposed) and returns a context manager yielding
+    an **already-started** ``DockerContainer``::
 
         @contextlib.contextmanager
-        def my_container_factory() -> Iterator[DockerContainer]:
+        def my_container_factory(port: int) -> Iterator[DockerContainer]:
             with DockerContainer("python:3.12-slim") \
-                    .with_command("sleep infinity") as c:
+                    .with_command("sleep infinity") \
+                    .with_exposed_ports(port) as c:
                 c.start()
                 yield c
 
@@ -103,7 +105,7 @@ def in_container(
         image: Docker image name (e.g. ``"python:3.12-slim"``).
         path: Path to the Docker build context (requires ``tag``).
         tag: Tag for the built image (requires ``path``).
-        factory: A ``() -> AbstractContextManager[DockerContainer]`` callable.
+        factory: A ``(int) -> AbstractContextManager[DockerContainer]`` callable.
 
     Returns:
         A decorator that wraps the test function to execute inside the
@@ -137,7 +139,7 @@ def in_container(
                     return _run_image_spec(ImageSpec(image=str(built)))
 
             def _run_factory_spec(factory_spec: FactorySpec) -> T:
-                with factory_spec.factory() as container:
+                with factory_spec.factory(RPYC_PORT) as container:
                     return _run_in_container(container)
 
             match container_spec:

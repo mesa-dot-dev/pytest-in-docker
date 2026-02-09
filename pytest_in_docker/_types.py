@@ -36,7 +36,7 @@ class BuildSpec:
     tag: str
 
 
-ContainerFactory = Callable[[], AbstractContextManager["DockerContainer"]]
+ContainerFactory = Callable[[int], AbstractContextManager["DockerContainer"]]
 
 
 @dataclass(frozen=True)
