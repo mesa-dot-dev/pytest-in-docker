@@ -49,16 +49,18 @@ def in_container(path: str, tag: str) -> Callable[[Callable[P, T]], Callable[P, 
 def in_container(*, factory: ContainerFactory) -> Callable[[Callable[P, T]], Callable[P, T]]: ...
 
 
-def _parse_container_spec(*args: str, **kwargs: str | ContainerFactory) -> ContainerSpec:
+def _build_spec(*args: str, factory: ContainerFactory | None, **kwargs: str) -> ContainerSpec:
     """Build a ContainerSpec from the arguments passed to in_container."""
-    if "factory" in kwargs and callable(kwargs["factory"]):
-        return FactorySpec(factory=kwargs["factory"])  # type: ignore[arg-type]
-    return build_container_spec_from_args(*args, **kwargs)  # type: ignore[arg-type]
+    if factory is not None:
+        return FactorySpec(factory=factory)
+    return build_container_spec_from_args(*args, **kwargs)
 
 
-def in_container(*args: str, **kwargs: str | ContainerFactory) -> Callable[[Callable[P, T]], Callable[P, T]]:
+def in_container(
+    *args: str, factory: ContainerFactory | None = None, **kwargs: str,
+) -> Callable[[Callable[P, T]], Callable[P, T]]:
     """Run this test inside a docker container."""
-    container_spec = _parse_container_spec(*args, **kwargs)
+    container_spec = _build_spec(*args, factory=factory, **kwargs)
 
     def decorator(func: Callable[P, T]) -> Callable[P, T]:
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
