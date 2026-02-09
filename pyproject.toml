@@ -23,6 +23,7 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
+    "cloudpickle>=3.1.1",
     "pytest>=9.0.2",
     "rpyc>=6.0.2",
     "testcontainers>=4.14.1",
