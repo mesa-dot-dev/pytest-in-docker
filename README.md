@@ -13,6 +13,7 @@
 [![CI](https://img.shields.io/github/actions/workflow/status/mesa-dot-dev/pytest-in-docker/ci.yml?branch=main&label=CI)](https://github.com/mesa-dot-dev/pytest-in-docker/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/pypi/pyversions/pytest-in-docker)](https://pypi.org/project/pytest-in-docker/)
 [![License](https://img.shields.io/github/license/mesa-dot-dev/pytest-in-docker)](https://github.com/mesa-dot-dev/pytest-in-docker/blob/main/LICENSE.txt)
+[![Discord](https://img.shields.io/badge/Discord-Join%20us-5865F2?logo=discord&logoColor=white)](https://discord.gg/2vvEJFrCHV)
 
 </div>
 
@@ -51,8 +52,8 @@ Then run pytest as usual:
 pytest
 ```
 
-That's it. The function is teleported into a fresh `python:alpine` container,
-executed there, and the result is reported back to your terminal.
+The function is executed in a fresh `python:alpine` container and the result is
+reported back to your terminal.
 
 ## Usage
 
@@ -120,6 +121,40 @@ def test_across_distros(image: str, expected_id: str):
 
 When `@pytest.mark.in_container()` is called with no arguments, it reads the `image` parameter from `@pytest.mark.parametrize`. This lets you build a compatibility matrix with zero boilerplate.
 
+### Custom Container Factory
+
+When you need to customise the container beyond what the other modes offer — environment variables, volumes, extra ports — pass a factory:
+
+```python
+from contextlib import contextmanager
+from typing import Iterator
+
+from testcontainers.core.container import DockerContainer
+
+from pytest_in_docker import in_container
+
+
+@contextmanager
+def my_container(port: int) -> Iterator[DockerContainer]:
+    with (
+        DockerContainer("python:alpine")
+        .with_command("sleep infinity")
+        .with_exposed_ports(port)
+        .with_env("APP_ENV", "test") as container
+    ):
+        container.start()
+        yield container
+
+
+@in_container(factory=my_container)
+def test_env_is_set():
+    import os
+
+    assert os.environ["APP_ENV"] == "test"
+```
+
+A factory is a callable that accepts a `port: int` argument and returns a context manager yielding an already-started `DockerContainer`. The framework passes the communication port automatically — the factory just needs to expose it and run `sleep infinity`.
+
 ## How It Works
 
 When a decorated test runs:
@@ -170,6 +205,16 @@ Decorator. Builds an image from the Dockerfile at `path`, tags it as `tag`, then
 
 ```python
 @in_container(path="./docker", tag="my-app:test")
+def test_something():
+    ...
+```
+
+### `in_container(factory)`
+
+Decorator. Runs the test inside a container created by `factory`, a `ContainerFactory` — a callable that accepts a `port: int` and returns a context manager yielding a started `DockerContainer`.
+
+```python
+@in_container(factory=my_container)
 def test_something():
     ...
 ```

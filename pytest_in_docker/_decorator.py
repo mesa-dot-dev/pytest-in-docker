@@ -11,9 +11,9 @@ from testcontainers.core.image import DockerImage
 from pytest_in_docker._container import RPYC_PORT, bootstrap_container
 from pytest_in_docker._types import (
     BuildSpec,
-    ContainerSpec,
+    ContainerFactory,
+    FactorySpec,
     ImageSpec,
-    InvalidContainerSpecError,
     build_container_spec_from_args,
 )
 
@@ -40,12 +40,83 @@ def in_container(image: str) -> Callable[[Callable[P, T]], Callable[P, T]]: ...
 
 
 @overload
-def in_container(path: str, tag: str) -> Callable[[Callable[P, T]], Callable[P, T]]: ...
+def in_container(*, path: str, tag: str) -> Callable[[Callable[P, T]], Callable[P, T]]: ...
 
 
-def in_container(*args: str, **kwargs: str) -> Callable[[Callable[P, T]], Callable[P, T]]:
-    """Run this test inside a docker container."""
-    container_spec: ContainerSpec = build_container_spec_from_args(*args, **kwargs)
+@overload
+def in_container(*, factory: ContainerFactory) -> Callable[[Callable[P, T]], Callable[P, T]]: ...
+
+
+def in_container(
+    image: str | None = None,
+    *,
+    path: str | None = None,
+    tag: str | None = None,
+    factory: ContainerFactory | None = None,
+) -> Callable[[Callable[P, T]], Callable[P, T]]:
+    r"""Run a pytest test function inside a Docker container.
+
+    The decorated test is serialised, sent to the container over RPyC, executed
+    there, and the result (or exception) is returned to the host.
+
+    Three mutually exclusive ways to specify the container are supported:
+
+    **1. Pre-built image** (positional ``image`` string)::
+
+        @in_container("python:3.12-slim")
+        def test_something():
+            ...
+
+    A ``DockerContainer`` is created from the image, started with
+    ``sleep infinity``, and torn down after the test.
+
+    **2. Build from Dockerfile** (keyword-only ``path`` and ``tag``)::
+
+        @in_container(path=".", tag="my-app:test")
+        def test_something():
+            ...
+
+    The image is built from the Dockerfile at *path*, tagged as *tag*,
+    then used the same way as a pre-built image.
+
+    **3. Custom factory** (keyword-only ``factory``)::
+
+        @in_container(factory=my_container_factory)
+        def test_something():
+            ...
+
+    The factory accepts a ``port: int`` argument (the communication port
+    the framework needs exposed) and returns a context manager yielding
+    an **already-started** ``DockerContainer``::
+
+        @contextlib.contextmanager
+        def my_container_factory(port: int) -> Iterator[DockerContainer]:
+            with DockerContainer("python:3.12-slim") \
+                    .with_command("sleep infinity") \
+                    .with_exposed_ports(port) as c:
+                c.start()
+                yield c
+
+    Use a factory when you need to customise the container beyond what
+    the other modes offer (e.g. mount volumes, set environment variables,
+    or expose extra ports).
+
+    Args:
+        image: Docker image name (e.g. ``"python:3.12-slim"``).
+        path: Path to the Docker build context (requires ``tag``).
+        tag: Tag for the built image (requires ``path``).
+        factory: A ``(int) -> AbstractContextManager[DockerContainer]`` callable.
+
+    Returns:
+        A decorator that wraps the test function to execute inside the
+        specified container.
+
+    Raises:
+        InvalidContainerSpecError: If the arguments don't match any of the
+            three supported modes.
+
+    """
+    container_spec = build_container_spec_from_args(image, path=path, tag=tag, factory=factory)
 
     def decorator(func: Callable[P, T]) -> Callable[P, T]:
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
@@ -64,15 +135,20 @@ def in_container(*args: str, **kwargs: str) -> Callable[[Callable[P, T]], Callab
                     return _run_in_container(started)
 
             def _run_build_spec(build_spec: BuildSpec) -> T:
-                with DockerImage(path=build_spec.path, tag=build_spec.tag) as image:
-                    return _run_image_spec(ImageSpec(image=str(image)))
+                with DockerImage(path=build_spec.path, tag=build_spec.tag) as built:
+                    return _run_image_spec(ImageSpec(image=str(built)))
 
-            if isinstance(container_spec, ImageSpec):
-                return _run_image_spec(container_spec)
-            if isinstance(container_spec, BuildSpec):
-                return _run_build_spec(container_spec)
-            msg = "Invalid container specification."
-            raise InvalidContainerSpecError(msg)
+            def _run_factory_spec(factory_spec: FactorySpec) -> T:
+                with factory_spec.factory(RPYC_PORT) as container:
+                    return _run_in_container(container)
+
+            match container_spec:
+                case ImageSpec():
+                    return _run_image_spec(container_spec)
+                case BuildSpec():
+                    return _run_build_spec(container_spec)
+                case FactorySpec():
+                    return _run_factory_spec(container_spec)
 
         return wrapper
 

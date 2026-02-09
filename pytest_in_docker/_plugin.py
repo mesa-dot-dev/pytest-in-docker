@@ -12,6 +12,7 @@ from pytest_in_docker._decorator import _get_clean_func
 from pytest_in_docker._types import (
     BuildSpec,
     ContainerSpec,
+    FactorySpec,
     ImageSpec,
     InvalidContainerSpecError,
     NoContainerSpecifiedError,
@@ -27,9 +28,9 @@ def pytest_configure(config: pytest.Config) -> None:
     """Register the in_container marker."""
     config.addinivalue_line(
         "markers",
-        "in_container(image): run this test inside a Docker container. "
-        "Pass an image string, or path+tag for Dockerfile builds. "
-        "If no image is given, 'image' is read from parametrized args.",
+        "in_container(image | path+tag | factory): run this test inside a Docker container. "
+        "Pass an image string, path+tag for Dockerfile builds, or factory for custom containers. "
+        "With no arguments, 'image' is read from parametrized args.",
     )
 
 
@@ -73,6 +74,10 @@ def _run_test_in_container(
         ):
             started = container.start()
             remote_func = bootstrap_container(started).teleport(clean)
+            remote_func(**test_kwargs)
+    elif isinstance(container_spec, FactorySpec):
+        with container_spec.factory(RPYC_PORT) as container:
+            remote_func = bootstrap_container(container).teleport(clean)
             remote_func(**test_kwargs)
     else:
         msg = "Invalid container specification."
