@@ -85,7 +85,9 @@ def _run_test_in_container(
             run_pickled(conn, func, **test_kwargs)
     elif isinstance(container_spec, FactorySpec):
         with container_spec.factory(RPYC_PORT) as container:
-            conn = bootstrap_container(container)
+            conn = bootstrap_container(
+                container, sync_request_timeout=sync_request_timeout
+            )
             run_pickled(conn, func, **test_kwargs)
     else:
         msg = "Invalid container specification."
