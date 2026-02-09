@@ -28,9 +28,9 @@ def pytest_configure(config: pytest.Config) -> None:
     """Register the in_container marker."""
     config.addinivalue_line(
         "markers",
-        "in_container(image): run this test inside a Docker container. "
-        "Pass an image string, or path+tag for Dockerfile builds. "
-        "If no image is given, 'image' is read from parametrized args.",
+        "in_container(image | path+tag | factory): run this test inside a Docker container. "
+        "Pass an image string, path+tag for Dockerfile builds, or factory for custom containers. "
+        "With no arguments, 'image' is read from parametrized args.",
     )
 
 
