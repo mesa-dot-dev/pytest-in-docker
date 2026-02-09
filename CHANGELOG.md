@@ -1,3 +1,25 @@
+0.2.1
+===
+Bug fix: module-level classes now serialise correctly into containers.
+
+* [BUG #6](https://github.com/mesa-dot-dev/pytest-in-docker/pull/6):
+  Fix serialisation of module-level classes. Tests can now use classes defined
+  at module scope — including inheritance hierarchies, enums, and classes that
+  reference other module-level classes — without hitting pickle errors.
+
+  ```python
+  from enum import Enum
+
+  class Color(Enum):
+      RED = 1
+      GREEN = 2
+
+  @in_container("python:alpine")
+  def test_enum():
+      assert Color.RED.value == 1   # works in 0.2.1
+  ```
+
+
 0.2.0
 ===
 This release replaces the fragile `inspect.getsource` + `exec` serialisation
