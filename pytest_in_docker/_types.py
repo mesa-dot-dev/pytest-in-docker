@@ -1,6 +1,7 @@
 """Type definitions, exceptions, and container specification parsing."""
 
-from collections.abc import Callable, Generator
+from collections.abc import Callable
+from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -35,7 +36,7 @@ class BuildSpec:
     tag: str
 
 
-ContainerFactory = Callable[[], Generator["DockerContainer"]]
+ContainerFactory = Callable[[], AbstractContextManager["DockerContainer"]]
 
 
 @dataclass(frozen=True)

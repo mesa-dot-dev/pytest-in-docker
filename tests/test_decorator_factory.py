@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
@@ -11,7 +12,7 @@ from testcontainers.core.container import DockerContainer
 from pytest_in_docker import in_container
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
+    from collections.abc import Iterator
 
 EXPECTED_RETURN = 42
 
@@ -20,7 +21,8 @@ def test_in_container_accepts_factory() -> None:
     """in_container accepts a callable factory and runs the test via rpyc."""
     mock_container = MagicMock(spec=DockerContainer)
 
-    def factory() -> Generator[DockerContainer]:
+    @contextmanager
+    def factory() -> Iterator[DockerContainer]:
         yield mock_container
 
     mock_conn = MagicMock()
@@ -47,7 +49,8 @@ def test_factory_cleanup_runs_on_success() -> None:
     cleanup_called = False
     mock_container = MagicMock(spec=DockerContainer)
 
-    def factory() -> Generator[DockerContainer]:
+    @contextmanager
+    def factory() -> Iterator[DockerContainer]:
         nonlocal cleanup_called
         yield mock_container
         cleanup_called = True
@@ -74,7 +77,8 @@ def test_factory_cleanup_runs_on_failure() -> None:
     cleanup_called = False
     mock_container = MagicMock(spec=DockerContainer)
 
-    def factory() -> Generator[DockerContainer]:
+    @contextmanager
+    def factory() -> Iterator[DockerContainer]:
         nonlocal cleanup_called
         try:
             yield mock_container

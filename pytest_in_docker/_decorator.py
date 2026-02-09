@@ -1,6 +1,5 @@
 """The in_container decorator for running tests inside Docker containers."""
 
-import contextlib
 import inspect
 import textwrap
 from collections.abc import Callable
@@ -82,13 +81,8 @@ def in_container(*args: str, **kwargs: str | ContainerFactory) -> Callable[[Call
                     return _run_image_spec(ImageSpec(image=str(image)))
 
             def _run_factory_spec(factory_spec: FactorySpec) -> T:
-                gen = factory_spec.factory()
-                container = next(gen)
-                try:
+                with factory_spec.factory() as container:
                     return _run_in_container(container)
-                finally:
-                    with contextlib.suppress(StopIteration):
-                        next(gen)
 
             match container_spec:
                 case ImageSpec():

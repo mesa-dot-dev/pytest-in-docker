@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+from contextlib import contextmanager
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
@@ -12,10 +13,11 @@ from testcontainers.core.container import DockerContainer
 from pytest_in_docker._types import FactorySpec
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
+    from collections.abc import Iterator
 
 
-def _dummy_factory() -> Generator[DockerContainer]:
+@contextmanager
+def _dummy_factory() -> Iterator[DockerContainer]:
     yield MagicMock(spec=DockerContainer)
 
 
