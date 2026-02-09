@@ -50,39 +50,57 @@ def copy_file_to_container(content: str, path: pathlib.Path, container: DockerCo
         raise ContainerPrepareError(msg)
 
 
-def bootstrap_container(container: DockerContainer) -> Any:  # noqa: ANN401
-    """Install dependencies, start rpyc server, and return a verified connection."""
+def _find_binary(container: DockerContainer, name: str) -> pathlib.Path:
+    res = container.exec(["which", name])
+    if res.exit_code != 0:
+        msg = f"'{name}' not found in the container: {res.output}"
+        raise ContainerPrepareError(msg)
+    return pathlib.Path(res.output.decode("utf-8").strip())
 
-    def _find_binary(name: str) -> pathlib.Path:
-        res = container.exec(["which", name])
-        if res.exit_code != 0:
-            msg = f"'{name}' not found in the container: {res.output}"
-            raise ContainerPrepareError(msg)
-        return pathlib.Path(res.output.decode("utf-8").strip())
 
-    def _find_one_of(names: Iterable[str]) -> pathlib.Path:
-        for name in names:
-            try:
-                return _find_binary(name)
-            except ContainerPrepareError:
-                continue
-        msg = f"None of [{', '.join(names)}] found in the container"
+def _find_one_of(container: DockerContainer, names: Iterable[str]) -> pathlib.Path:
+    for name in names:
+        try:
+            return _find_binary(container, name)
+        except ContainerPrepareError:
+            continue
+    msg = f"None of [{', '.join(names)}] found in the container"
+    raise ContainerPrepareError(msg)
+
+
+def _run_or_fail(container: DockerContainer, cmd: list[str] | str, error_msg: str) -> None:
+    res = container.exec(cmd)
+    if res.exit_code != 0:
+        msg = f"{error_msg}: Error: {res.output}"
         raise ContainerPrepareError(msg)
 
-    def _run_or_fail(cmd: list[str] | str, error_msg: str) -> None:
-        res = container.exec(cmd)
-        if res.exit_code != 0:
-            msg = f"{error_msg}: Error: {res.output}"
-            raise ContainerPrepareError(msg)
 
-    python = _find_one_of(["python3", "python"])
-    venv_python = pathlib.Path(f"{_VENV_DIR}/bin/python")
+def _install_deps(container: DockerContainer, python: pathlib.Path) -> pathlib.Path:
+    """Install rpyc and pytest, returning the python path to use.
 
-    _run_or_fail([str(python), "-m", "venv", _VENV_DIR], "Failed to create venv in the container.")
-    _run_or_fail([str(venv_python), "-m", "pip", "install", "rpyc", "pytest"], "Failed to install container deps.")
+    Tries to create a venv first (respects PEP 668). Falls back to
+    --break-system-packages on minimal images where python3-venv or
+    ensurepip is stripped.
+    """
+    venv_ok = container.exec([str(python), "-m", "venv", _VENV_DIR]).exit_code == 0
+    if venv_ok:
+        python = pathlib.Path(f"{_VENV_DIR}/bin/python")
+
+    install_cmd = [str(python), "-m", "pip", "install", "rpyc", "pytest"]
+    if not venv_ok:
+        install_cmd.insert(4, "--break-system-packages")
+    _run_or_fail(container, install_cmd, "Failed to install container deps.")
+    return python
+
+
+def bootstrap_container(container: DockerContainer) -> Any:  # noqa: ANN401
+    """Install dependencies, start rpyc server, and return a verified connection."""
+    python = _install_deps(container, _find_one_of(container, ["python3", "python"]))
+
     copy_file_to_container(_RPYC_SERVER_SCRIPT, pathlib.Path("/tmp/rpyc_server.py"), container)  # noqa: S108
     _run_or_fail(
-        ["sh", "-c", f"{venv_python} /tmp/rpyc_server.py &"],
+        container,
+        ["sh", "-c", f"{python} /tmp/rpyc_server.py &"],
         "Failed to start rpyc server on the container.",
     )
 
