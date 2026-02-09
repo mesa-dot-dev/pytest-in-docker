@@ -1,6 +1,11 @@
 """Type definitions, exceptions, and container specification parsing."""
 
+from collections.abc import Callable, Generator
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from testcontainers.core.container import DockerContainer
 
 
 class NoContainerSpecifiedError(RuntimeError):
@@ -30,7 +35,17 @@ class BuildSpec:
     tag: str
 
 
-ContainerSpec = ImageSpec | BuildSpec
+ContainerFactory = Callable[[], Generator["DockerContainer", None, None]]
+
+
+@dataclass(frozen=True)
+class FactorySpec:
+    """A container specification using a user-provided factory."""
+
+    factory: ContainerFactory
+
+
+ContainerSpec = ImageSpec | BuildSpec | FactorySpec
 
 
 def build_container_spec_from_args(*args: str, **kwargs: str) -> ContainerSpec:
