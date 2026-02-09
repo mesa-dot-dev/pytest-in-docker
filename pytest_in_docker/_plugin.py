@@ -7,8 +7,7 @@ from typing import TYPE_CHECKING, Any
 from testcontainers.core.container import DockerContainer
 from testcontainers.core.image import DockerImage
 
-from pytest_in_docker._container import RPYC_PORT, bootstrap_container
-from pytest_in_docker._decorator import _get_clean_func
+from pytest_in_docker._container import RPYC_PORT, bootstrap_container, run_pickled
 from pytest_in_docker._types import (
     BuildSpec,
     ContainerSpec,
@@ -61,8 +60,6 @@ def _run_test_in_container(
     sync_request_timeout: int = 30,
 ) -> None:
     """Run a test function inside a Docker container."""
-    clean = _get_clean_func(func)
-
     if isinstance(container_spec, ImageSpec):
         with (
             DockerContainer(container_spec.image)
@@ -73,8 +70,7 @@ def _run_test_in_container(
             conn = bootstrap_container(
                 started, sync_request_timeout=sync_request_timeout
             )
-            remote_func = conn.teleport(clean)
-            remote_func(**test_kwargs)
+            run_pickled(conn, func, **test_kwargs)
     elif isinstance(container_spec, BuildSpec):
         with (
             DockerImage(path=container_spec.path, tag=container_spec.tag) as image,
@@ -86,15 +82,11 @@ def _run_test_in_container(
             conn = bootstrap_container(
                 started, sync_request_timeout=sync_request_timeout
             )
-            remote_func = conn.teleport(clean)
-            remote_func(**test_kwargs)
+            run_pickled(conn, func, **test_kwargs)
     elif isinstance(container_spec, FactorySpec):
         with container_spec.factory(RPYC_PORT) as container:
-            conn = bootstrap_container(
-                container, sync_request_timeout=sync_request_timeout
-            )
-            remote_func = conn.teleport(clean)
-            remote_func(**test_kwargs)
+            conn = bootstrap_container(container)
+            run_pickled(conn, func, **test_kwargs)
     else:
         msg = "Invalid container specification."
         raise InvalidContainerSpecError(msg)

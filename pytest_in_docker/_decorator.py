@@ -1,14 +1,14 @@
 """The in_container decorator for running tests inside Docker containers."""
 
-import inspect
-import textwrap
-from collections.abc import Callable
-from typing import Any, ParamSpec, TypeVar, overload
+from typing import TYPE_CHECKING, ParamSpec, TypeVar, overload
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 from testcontainers.core.container import DockerContainer
 from testcontainers.core.image import DockerImage
 
-from pytest_in_docker._container import RPYC_PORT, bootstrap_container
+from pytest_in_docker._container import RPYC_PORT, bootstrap_container, run_pickled
 from pytest_in_docker._types import (
     BuildSpec,
     ContainerFactory,
@@ -19,20 +19,6 @@ from pytest_in_docker._types import (
 
 P = ParamSpec("P")
 T = TypeVar("T")
-
-
-def _get_clean_func[T: Callable[..., Any]](func: T) -> T:
-    """Recompile a function from source to strip pytest's assertion rewriting."""
-    source = textwrap.dedent(inspect.getsource(func))
-    lines = source.splitlines()
-    for i, line in enumerate(lines):
-        if line.lstrip().startswith("def "):
-            source = "\n".join(lines[i:])
-            break
-    code = compile(source, inspect.getfile(func), "exec")
-    ns: dict[str, Any] = {}
-    exec(code, ns)  # noqa: S102
-    return ns[func.__name__]
 
 
 @overload
@@ -60,8 +46,9 @@ def in_container(
 ) -> Callable[[Callable[P, T]], Callable[P, T]]:
     r"""Run a pytest test function inside a Docker container.
 
-    The decorated test is serialised, sent to the container over RPyC, executed
-    there, and the result (or exception) is returned to the host.
+    The decorated test is serialised with cloudpickle, sent to the container
+    over RPyC, deserialised there, and the result (or exception) is returned
+    to the host.
 
     Three mutually exclusive ways to specify the container are supported:
 
@@ -127,9 +114,8 @@ def in_container(
     def decorator(func: Callable[P, T]) -> Callable[P, T]:
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             def _run_in_container(c: DockerContainer) -> T:
-                clean = _get_clean_func(func)
-                test = bootstrap_container(c).teleport(clean)
-                return test(*args, **kwargs)
+                conn = bootstrap_container(c)
+                return run_pickled(conn, func, *args, **kwargs)
 
             def _run_image_spec(image: ImageSpec) -> T:
                 with (
