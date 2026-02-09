@@ -85,7 +85,9 @@ def _run_or_fail(
 
 def _check_python_version(container: DockerContainer, python: pathlib.Path) -> None:
     """Verify the container's Python major.minor matches the host."""
-    version_script = "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"
+    version_script = (
+        "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"
+    )
     res = container.exec([str(python), "-c", version_script])
     if res.exit_code != 0:
         msg = f"Failed to determine Python version in the container: {res.output}"
@@ -94,8 +96,8 @@ def _check_python_version(container: DockerContainer, python: pathlib.Path) -> N
     local_ver = f"{sys.version_info.major}.{sys.version_info.minor}"
     if remote_ver != local_ver:
         msg = (
-            f"Python version mismatch: host has {local_ver} but container has {remote_ver}. "
-            f"rpyc teleport requires matching major.minor versions."
+            f"Python version mismatch: host has {local_ver} but container has "
+            f"{remote_ver}. rpyc teleport requires matching major.minor versions."
         )
         raise ContainerPrepareError(msg)
 
@@ -135,7 +137,10 @@ def _connect_with_retries(host: str, port: int) -> Any:  # noqa: ANN401
         else:
             return conn
 
-    msg = f"Could not connect to rpyc server after {_CONNECT_RETRIES} attempts: {last_err}"
+    msg = (
+        f"Could not connect to rpyc server after {_CONNECT_RETRIES} attempts: "
+        f"{last_err}"
+    )
     raise ContainerPrepareError(msg)
 
 
