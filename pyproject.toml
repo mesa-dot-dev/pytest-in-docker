@@ -24,6 +24,10 @@ line-length = 120
 
 [tool.ruff.lint]
 select = ["ALL"]
+ignore = [
+    "D203", # Conflicts with D211 which is better
+    "D213", # Conflicts with D212 which is better
+]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = [

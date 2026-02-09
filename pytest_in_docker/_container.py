@@ -10,9 +10,12 @@ import rpyc
 from pytest_in_docker._types import ContainerPrepareError
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from testcontainers.core.container import DockerContainer
 
 RPYC_PORT = 51337
+_VENV_DIR = "/opt/pytest-in-docker"
 
 _RPYC_SERVER_SCRIPT = f"""
 from rpyc.utils.server import ThreadedServer
@@ -50,18 +53,36 @@ def copy_file_to_container(content: str, path: pathlib.Path, container: DockerCo
 def bootstrap_container(container: DockerContainer) -> Any:  # noqa: ANN401
     """Install dependencies, start rpyc server, and return a verified connection."""
 
+    def _find_binary(name: str) -> pathlib.Path:
+        res = container.exec(["which", name])
+        if res.exit_code != 0:
+            msg = f"'{name}' not found in the container: {res.output}"
+            raise ContainerPrepareError(msg)
+        return pathlib.Path(res.output.decode("utf-8").strip())
+
+    def _find_one_of(names: Iterable[str]) -> pathlib.Path:
+        for name in names:
+            try:
+                return _find_binary(name)
+            except ContainerPrepareError:
+                continue
+        msg = f"None of [{', '.join(names)}] found in the container"
+        raise ContainerPrepareError(msg)
+
     def _run_or_fail(cmd: list[str] | str, error_msg: str) -> None:
         res = container.exec(cmd)
         if res.exit_code != 0:
             msg = f"{error_msg}: Error: {res.output}"
             raise ContainerPrepareError(msg)
 
-    _run_or_fail(["which", "python"], "No python3 installed in the container.")
-    _run_or_fail(["which", "pip"], "No pip3 installed in the container.")
-    _run_or_fail(["pip3", "install", "rpyc", "pytest"], "Failed to install container deps.")
+    python = _find_one_of(["python3", "python"])
+    venv_python = pathlib.Path(f"{_VENV_DIR}/bin/python")
+
+    _run_or_fail([str(python), "-m", "venv", _VENV_DIR], "Failed to create venv in the container.")
+    _run_or_fail([str(venv_python), "-m", "pip", "install", "rpyc", "pytest"], "Failed to install container deps.")
     copy_file_to_container(_RPYC_SERVER_SCRIPT, pathlib.Path("/tmp/rpyc_server.py"), container)  # noqa: S108
     _run_or_fail(
-        ["sh", "-c", "python3 /tmp/rpyc_server.py &"],
+        ["sh", "-c", f"{venv_python} /tmp/rpyc_server.py &"],
         "Failed to start rpyc server on the container.",
     )
 
