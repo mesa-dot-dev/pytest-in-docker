@@ -120,12 +120,16 @@ def _install_deps(container: DockerContainer, python: pathlib.Path) -> pathlib.P
     return python
 
 
-def _connect_with_retries(host: str, port: int) -> Any:  # noqa: ANN401
+def _connect_with_retries(
+    host: str, port: int, *, sync_request_timeout: int = 30
+) -> Any:  # noqa: ANN401
     """Connect to the rpyc server, retrying until it's ready."""
     last_err: Exception | None = None
     for _ in range(_CONNECT_RETRIES):
         try:
-            conn = rpyc.classic.connect(host, port)
+            conn = rpyc.classic.connect(
+                host, port, config={"sync_request_timeout": sync_request_timeout}
+            )
             lo = conn.teleport(_loopback)
             if lo("hello") != "hello":
                 msg = "Failed to communicate with rpyc server on the container."
@@ -143,7 +147,9 @@ def _connect_with_retries(host: str, port: int) -> Any:  # noqa: ANN401
     raise ContainerPrepareError(msg)
 
 
-def bootstrap_container(container: DockerContainer) -> Any:  # noqa: ANN401
+def bootstrap_container(
+    container: DockerContainer, *, sync_request_timeout: int = 30
+) -> Any:  # noqa: ANN401
     """Install dependencies, start rpyc server, and return a verified connection."""
     python = _find_one_of(container, ["python3", "python"])
     _check_python_version(container, python)
@@ -163,4 +169,5 @@ def bootstrap_container(container: DockerContainer) -> Any:  # noqa: ANN401
     return _connect_with_retries(
         container.get_container_host_ip(),
         container.get_exposed_port(RPYC_PORT),
+        sync_request_timeout=sync_request_timeout,
     )
