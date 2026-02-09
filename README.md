@@ -13,6 +13,7 @@
 [![CI](https://img.shields.io/github/actions/workflow/status/mesa-dot-dev/pytest-in-docker/ci.yml?branch=main&label=CI)](https://github.com/mesa-dot-dev/pytest-in-docker/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/pypi/pyversions/pytest-in-docker)](https://pypi.org/project/pytest-in-docker/)
 [![License](https://img.shields.io/github/license/mesa-dot-dev/pytest-in-docker)](https://github.com/mesa-dot-dev/pytest-in-docker/blob/main/LICENSE.txt)
+[![Discord](https://img.shields.io/badge/Discord-Join%20us-5865F2?logo=discord&logoColor=white)](https://discord.gg/2vvEJFrCHV)
 
 </div>
 
@@ -51,8 +52,8 @@ Then run pytest as usual:
 pytest
 ```
 
-That's it. The function is teleported into a fresh `python:alpine` container,
-executed there, and the result is reported back to your terminal.
+The function is executed in a fresh `python:alpine` container and the result is
+reported back to your terminal.
 
 ## Usage
 
