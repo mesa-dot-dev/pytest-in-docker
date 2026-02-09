@@ -102,8 +102,10 @@ def bootstrap_container(container: DockerContainer) -> Any:  # noqa: ANN401
     python = _install_deps(container, _find_one_of(container, ["python3", "python"]))
 
     copy_file_to_container(
-        _RPYC_SERVER_SCRIPT, pathlib.Path("/tmp/rpyc_server.py"), container
-    )  # noqa: S108
+        _RPYC_SERVER_SCRIPT,
+        pathlib.Path("/tmp/rpyc_server.py"),  # noqa: S108
+        container,
+    )
     _run_or_fail(
         container,
         ["sh", "-c", f"{python} /tmp/rpyc_server.py &"],
