@@ -70,7 +70,9 @@ def _run_test_in_container(
     elif isinstance(container_spec, BuildSpec):
         with (
             DockerImage(path=container_spec.path, tag=container_spec.tag) as image,
-            DockerContainer(str(image)).with_command("sleep infinity").with_exposed_ports(RPYC_PORT) as container,
+            DockerContainer(str(image))
+            .with_command("sleep infinity")
+            .with_exposed_ports(RPYC_PORT) as container,
         ):
             started = container.start()
             remote_func = bootstrap_container(started).teleport(clean)

@@ -16,7 +16,11 @@ if TYPE_CHECKING:
 @contextmanager
 def alpine_factory(port: int) -> Iterator[DockerContainer]:
     """Create and start a python:alpine container."""
-    with DockerContainer("python:alpine").with_command("sleep infinity").with_exposed_ports(port) as container:
+    with (
+        DockerContainer("python:alpine")
+        .with_command("sleep infinity")
+        .with_exposed_ports(port) as container
+    ):
         container.start()
         yield container
 

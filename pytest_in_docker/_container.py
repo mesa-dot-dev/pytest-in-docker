@@ -31,7 +31,9 @@ def _loopback[T](value: T) -> T:
     return value
 
 
-def copy_file_to_container(content: str, path: pathlib.Path, container: DockerContainer) -> None:
+def copy_file_to_container(
+    content: str, path: pathlib.Path, container: DockerContainer
+) -> None:
     """Copy a string as a file into a running Docker container via tar archive."""
     tar_stream = io.BytesIO()
     with tarfile.open(fileobj=tar_stream, mode="w") as tar:
@@ -68,7 +70,9 @@ def _find_one_of(container: DockerContainer, names: Iterable[str]) -> pathlib.Pa
     raise ContainerPrepareError(msg)
 
 
-def _run_or_fail(container: DockerContainer, cmd: list[str] | str, error_msg: str) -> None:
+def _run_or_fail(
+    container: DockerContainer, cmd: list[str] | str, error_msg: str
+) -> None:
     res = container.exec(cmd)
     if res.exit_code != 0:
         msg = f"{error_msg}: Error: {res.output}"
@@ -97,7 +101,9 @@ def bootstrap_container(container: DockerContainer) -> Any:  # noqa: ANN401
     """Install dependencies, start rpyc server, and return a verified connection."""
     python = _install_deps(container, _find_one_of(container, ["python3", "python"]))
 
-    copy_file_to_container(_RPYC_SERVER_SCRIPT, pathlib.Path("/tmp/rpyc_server.py"), container)  # noqa: S108
+    copy_file_to_container(
+        _RPYC_SERVER_SCRIPT, pathlib.Path("/tmp/rpyc_server.py"), container
+    )  # noqa: S108
     _run_or_fail(
         container,
         ["sh", "-c", f"{python} /tmp/rpyc_server.py &"],

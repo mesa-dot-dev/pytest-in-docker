@@ -5,11 +5,33 @@ description = "Seamlessly run pytest tests inside docker containers"
 license = "MIT"
 readme = "README.md"
 requires-python = ">=3.14"
+authors = [
+    { name = "Marko", email = "marko@mesa.dev" },
+]
+keywords = ["pytest", "docker", "testing", "containers", "isolation", "pytest-plugin"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Framework :: Pytest",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development :: Testing",
+    "Topic :: Software Development :: Quality Assurance",
+    "Typing :: Typed",
+]
 dependencies = [
     "pytest>=9.0.2",
     "rpyc>=6.0.2",
     "testcontainers>=4.14.1",
 ]
+
+[project.urls]
+Homepage = "https://github.com/mesa-dot-dev/pytest-in-docker"
+Repository = "https://github.com/mesa-dot-dev/pytest-in-docker"
+Issues = "https://github.com/mesa-dot-dev/pytest-in-docker/issues"
 
 [build-system]
 requires = ["hatchling"]
@@ -20,7 +42,7 @@ in_docker = "pytest_in_docker._plugin"
 
 [tool.ruff]
 target-version = "py314"
-line-length = 120
+line-length = 88
 
 [tool.ruff.lint]
 select = ["ALL"]
