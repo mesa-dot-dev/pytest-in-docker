@@ -32,7 +32,7 @@ def test_in_container_accepts_factory() -> None:
         patch("pytest_in_docker._decorator._get_clean_func", side_effect=lambda f: f),
     ):
 
-        @in_container(factory)
+        @in_container(factory=factory)
         def my_test() -> int:
             return EXPECTED_RETURN  # pragma: no cover
 
@@ -60,7 +60,7 @@ def test_factory_cleanup_runs_on_success() -> None:
         patch("pytest_in_docker._decorator._get_clean_func", side_effect=lambda f: f),
     ):
 
-        @in_container(factory)
+        @in_container(factory=factory)
         def my_test() -> None:
             pass  # pragma: no cover
 
@@ -89,7 +89,7 @@ def test_factory_cleanup_runs_on_failure() -> None:
         patch("pytest_in_docker._decorator._get_clean_func", side_effect=lambda f: f),
     ):
 
-        @in_container(factory)
+        @in_container(factory=factory)
         def my_test() -> None:
             pass  # pragma: no cover
 

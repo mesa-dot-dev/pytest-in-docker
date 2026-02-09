@@ -47,17 +47,17 @@ def in_container(path: str, tag: str) -> Callable[[Callable[P, T]], Callable[P, 
 
 
 @overload
-def in_container(factory: ContainerFactory) -> Callable[[Callable[P, T]], Callable[P, T]]: ...
+def in_container(*, factory: ContainerFactory) -> Callable[[Callable[P, T]], Callable[P, T]]: ...
 
 
-def _parse_container_spec(*args: str | ContainerFactory, **kwargs: str) -> ContainerSpec:
+def _parse_container_spec(*args: str, **kwargs: str | ContainerFactory) -> ContainerSpec:
     """Build a ContainerSpec from the arguments passed to in_container."""
-    if len(args) == 1 and callable(args[0]) and not isinstance(args[0], str):
-        return FactorySpec(factory=args[0])
+    if "factory" in kwargs and callable(kwargs["factory"]):
+        return FactorySpec(factory=kwargs["factory"])  # type: ignore[arg-type]
     return build_container_spec_from_args(*args, **kwargs)  # type: ignore[arg-type]
 
 
-def in_container(*args: str | ContainerFactory, **kwargs: str) -> Callable[[Callable[P, T]], Callable[P, T]]:
+def in_container(*args: str, **kwargs: str | ContainerFactory) -> Callable[[Callable[P, T]], Callable[P, T]]:
     """Run this test inside a docker container."""
     container_spec = _parse_container_spec(*args, **kwargs)
 
