@@ -11,7 +11,9 @@ from testcontainers.core.image import DockerImage
 from pytest_in_docker._container import RPYC_PORT, bootstrap_container
 from pytest_in_docker._types import (
     BuildSpec,
+    ContainerFactory,
     ContainerSpec,
+    FactorySpec,
     ImageSpec,
     InvalidContainerSpecError,
     build_container_spec_from_args,
@@ -43,9 +45,17 @@ def in_container(image: str) -> Callable[[Callable[P, T]], Callable[P, T]]: ...
 def in_container(path: str, tag: str) -> Callable[[Callable[P, T]], Callable[P, T]]: ...
 
 
-def in_container(*args: str, **kwargs: str) -> Callable[[Callable[P, T]], Callable[P, T]]:
+@overload
+def in_container(factory: ContainerFactory) -> Callable[[Callable[P, T]], Callable[P, T]]: ...
+
+
+def in_container(*args: Any, **kwargs: Any) -> Callable[[Callable[P, T]], Callable[P, T]]:
     """Run this test inside a docker container."""
-    container_spec: ContainerSpec = build_container_spec_from_args(*args, **kwargs)
+    container_spec: ContainerSpec
+    if len(args) == 1 and callable(args[0]) and not isinstance(args[0], str):
+        container_spec = FactorySpec(factory=args[0])
+    else:
+        container_spec = build_container_spec_from_args(*args, **kwargs)
 
     def decorator(func: Callable[P, T]) -> Callable[P, T]:
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
@@ -67,10 +77,23 @@ def in_container(*args: str, **kwargs: str) -> Callable[[Callable[P, T]], Callab
                 with DockerImage(path=build_spec.path, tag=build_spec.tag) as image:
                     return _run_image_spec(ImageSpec(image=str(image)))
 
+            def _run_factory_spec(factory_spec: FactorySpec) -> T:
+                gen = factory_spec.factory()
+                container = next(gen)
+                try:
+                    return _run_in_container(container)
+                finally:
+                    try:
+                        next(gen)
+                    except StopIteration:
+                        pass
+
             if isinstance(container_spec, ImageSpec):
                 return _run_image_spec(container_spec)
             if isinstance(container_spec, BuildSpec):
                 return _run_build_spec(container_spec)
+            if isinstance(container_spec, FactorySpec):
+                return _run_factory_spec(container_spec)
             msg = "Invalid container specification."
             raise InvalidContainerSpecError(msg)
 
