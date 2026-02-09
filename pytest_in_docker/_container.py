@@ -127,9 +127,8 @@ def _connect_with_retries(
     last_err: Exception | None = None
     for _ in range(_CONNECT_RETRIES):
         try:
-            conn = rpyc.classic.connect(
-                host, port, config={"sync_request_timeout": sync_request_timeout}
-            )
+            conn = rpyc.classic.connect(host, port)
+            conn._config["sync_request_timeout"] = sync_request_timeout  # noqa: SLF001
             lo = conn.teleport(_loopback)
             if lo("hello") != "hello":
                 msg = "Failed to communicate with rpyc server on the container."
