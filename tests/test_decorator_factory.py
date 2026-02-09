@@ -1,109 +1,56 @@
-"""Tests for the factory overload of in_container."""
+"""End-to-end tests for the factory overload of in_container."""
 
 from __future__ import annotations
 
 from contextlib import contextmanager
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock, patch
 
-import pytest
 from testcontainers.core.container import DockerContainer
 
 from pytest_in_docker import in_container
+from pytest_in_docker._container import RPYC_PORT
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-EXPECTED_RETURN = 42
 
-
-def test_in_container_accepts_factory() -> None:
-    """in_container accepts a callable factory and runs the test via rpyc."""
-    mock_container = MagicMock(spec=DockerContainer)
-
-    @contextmanager
-    def factory() -> Iterator[DockerContainer]:
-        yield mock_container
-
-    mock_conn = MagicMock()
-    mock_teleported = MagicMock(return_value=EXPECTED_RETURN)
-    mock_conn.teleport.return_value = mock_teleported
-
+@contextmanager
+def alpine_factory() -> Iterator[DockerContainer]:
+    """Create and start a python:alpine container."""
     with (
-        patch("pytest_in_docker._decorator.bootstrap_container", return_value=mock_conn),
-        patch("pytest_in_docker._decorator._get_clean_func", side_effect=lambda f: f),
+        DockerContainer("python:alpine")
+        .with_command("sleep infinity")
+        .with_exposed_ports(RPYC_PORT) as container
     ):
-
-        @in_container(factory=factory)
-        def my_test() -> int:
-            return EXPECTED_RETURN  # pragma: no cover
-
-        result = my_test()
-
-    assert result == EXPECTED_RETURN
-    mock_conn.teleport.assert_called_once()
+        container.start()
+        yield container
 
 
-def test_factory_cleanup_runs_on_success() -> None:
-    """Generator cleanup code runs after a successful test."""
-    cleanup_called = False
-    mock_container = MagicMock(spec=DockerContainer)
+@in_container(factory=alpine_factory)
+def test_factory_runs_in_alpine() -> None:
+    """Factory-provided container actually executes the test inside Alpine."""
+    import platform
 
-    @contextmanager
-    def factory() -> Iterator[DockerContainer]:
-        nonlocal cleanup_called
-        yield mock_container
-        cleanup_called = True
+    rel_info = platform.freedesktop_os_release()
+    assert rel_info["ID"].lower() == "alpine"
 
-    mock_conn = MagicMock()
-    mock_conn.teleport.return_value = MagicMock(return_value=None)
 
+@contextmanager
+def env_factory() -> Iterator[DockerContainer]:
+    """Create a container with a custom environment variable."""
     with (
-        patch("pytest_in_docker._decorator.bootstrap_container", return_value=mock_conn),
-        patch("pytest_in_docker._decorator._get_clean_func", side_effect=lambda f: f),
+        DockerContainer("python:alpine")
+        .with_command("sleep infinity")
+        .with_exposed_ports(RPYC_PORT)
+        .with_env("MY_TEST_VAR", "hello_from_factory") as container
     ):
-
-        @in_container(factory=factory)
-        def my_test() -> None:
-            pass  # pragma: no cover
-
-        my_test()
-
-    assert cleanup_called
+        container.start()
+        yield container
 
 
-def test_factory_cleanup_runs_on_failure() -> None:
-    """Generator cleanup code runs even when the test raises."""
-    cleanup_called = False
-    mock_container = MagicMock(spec=DockerContainer)
+@in_container(factory=env_factory)
+def test_factory_with_env_var() -> None:
+    """Factory can customize the container environment."""
+    import os
 
-    @contextmanager
-    def factory() -> Iterator[DockerContainer]:
-        nonlocal cleanup_called
-        try:
-            yield mock_container
-        finally:
-            cleanup_called = True
-
-    mock_conn = MagicMock()
-    mock_conn.teleport.return_value = MagicMock(side_effect=AssertionError("test failed"))
-
-    with (
-        patch("pytest_in_docker._decorator.bootstrap_container", return_value=mock_conn),
-        patch("pytest_in_docker._decorator._get_clean_func", side_effect=lambda f: f),
-    ):
-
-        @in_container(factory=factory)
-        def my_test() -> None:
-            pass  # pragma: no cover
-
-        with pytest.raises(AssertionError, match="test failed"):
-            my_test()
-
-    assert cleanup_called
-
-
-def test_string_arg_still_works() -> None:
-    """Passing a string image name still returns a decorator."""
-    decorator = in_container("python:alpine")
-    assert callable(decorator)
+    assert os.environ.get("MY_TEST_VAR") == "hello_from_factory"
