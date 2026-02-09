@@ -2,7 +2,9 @@
 
 import io
 import pathlib
+import sys
 import tarfile
+import time
 from typing import TYPE_CHECKING, Any
 
 import rpyc
@@ -16,6 +18,8 @@ if TYPE_CHECKING:
 
 RPYC_PORT = 51337
 _VENV_DIR = "/opt/pytest-in-docker"
+_CONNECT_RETRIES = 10
+_CONNECT_DELAY = 0.5
 
 _RPYC_SERVER_SCRIPT = f"""
 from rpyc.utils.server import ThreadedServer
@@ -79,6 +83,25 @@ def _run_or_fail(
         raise ContainerPrepareError(msg)
 
 
+def _check_python_version(container: DockerContainer, python: pathlib.Path) -> None:
+    """Verify the container's Python major.minor matches the host."""
+    version_script = (
+        "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"
+    )
+    res = container.exec([str(python), "-c", version_script])
+    if res.exit_code != 0:
+        msg = f"Failed to determine Python version in the container: {res.output}"
+        raise ContainerPrepareError(msg)
+    remote_ver = res.output.decode("utf-8").strip()
+    local_ver = f"{sys.version_info.major}.{sys.version_info.minor}"
+    if remote_ver != local_ver:
+        msg = (
+            f"Python version mismatch: host has {local_ver} but container has "
+            f"{remote_ver}. rpyc teleport requires matching major.minor versions."
+        )
+        raise ContainerPrepareError(msg)
+
+
 def _install_deps(container: DockerContainer, python: pathlib.Path) -> pathlib.Path:
     """Install rpyc and pytest, returning the python path to use.
 
@@ -97,9 +120,34 @@ def _install_deps(container: DockerContainer, python: pathlib.Path) -> pathlib.P
     return python
 
 
+def _connect_with_retries(host: str, port: int) -> Any:  # noqa: ANN401
+    """Connect to the rpyc server, retrying until it's ready."""
+    last_err: Exception | None = None
+    for _ in range(_CONNECT_RETRIES):
+        try:
+            conn = rpyc.classic.connect(host, port)
+            lo = conn.teleport(_loopback)
+            if lo("hello") != "hello":
+                msg = "Failed to communicate with rpyc server on the container."
+                raise ContainerPrepareError(msg)
+        except (EOFError, ConnectionRefusedError, OSError) as exc:
+            last_err = exc
+            time.sleep(_CONNECT_DELAY)
+        else:
+            return conn
+
+    msg = (
+        f"Could not connect to rpyc server after {_CONNECT_RETRIES} attempts: "
+        f"{last_err}"
+    )
+    raise ContainerPrepareError(msg)
+
+
 def bootstrap_container(container: DockerContainer) -> Any:  # noqa: ANN401
     """Install dependencies, start rpyc server, and return a verified connection."""
-    python = _install_deps(container, _find_one_of(container, ["python3", "python"]))
+    python = _find_one_of(container, ["python3", "python"])
+    _check_python_version(container, python)
+    python = _install_deps(container, python)
 
     copy_file_to_container(
         _RPYC_SERVER_SCRIPT,
@@ -112,13 +160,7 @@ def bootstrap_container(container: DockerContainer) -> Any:  # noqa: ANN401
         "Failed to start rpyc server on the container.",
     )
 
-    conn = rpyc.classic.connect(
+    return _connect_with_retries(
         container.get_container_host_ip(),
         container.get_exposed_port(RPYC_PORT),
     )
-    lo = conn.teleport(_loopback)
-    if lo("hello") != "hello":
-        msg = "Failed to communicate with rpyc server on the container."
-        raise ContainerPrepareError(msg)
-
-    return conn
