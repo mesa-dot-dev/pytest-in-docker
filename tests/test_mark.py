@@ -52,11 +52,7 @@ def test_parametrize_image_from_funcargs(image: str, expected_id: str) -> None: 
 @contextmanager
 def alpine_factory() -> Iterator[DockerContainer]:
     """Create and start a python:alpine container."""
-    with (
-        DockerContainer("python:alpine")
-        .with_command("sleep infinity")
-        .with_exposed_ports(RPYC_PORT) as container
-    ):
+    with DockerContainer("python:alpine").with_command("sleep infinity").with_exposed_ports(RPYC_PORT) as container:
         container.start()
         yield container
 

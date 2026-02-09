@@ -85,7 +85,5 @@ def build_container_spec_from_args(
         return ImageSpec(image=image)
     if path is not None and tag is not None:
         return BuildSpec(path=path, tag=tag)
-    msg = (
-        "Expected (image: str), (path: str, tag: str), or (factory: ContainerFactory)."
-    )
+    msg = "Expected (image: str), (path: str, tag: str), or (factory: ContainerFactory)."
     raise InvalidContainerSpecError(msg)

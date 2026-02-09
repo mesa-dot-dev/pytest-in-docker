@@ -54,7 +54,7 @@ def in_container(
     tag: str | None = None,
     factory: ContainerFactory | None = None,
 ) -> Callable[[Callable[P, T]], Callable[P, T]]:
-    """Run a pytest test function inside a Docker container.
+    r"""Run a pytest test function inside a Docker container.
 
     The decorated test is serialised, sent to the container over RPyC, executed
     there, and the result (or exception) is returned to the host.
@@ -90,7 +90,7 @@ def in_container(
 
         @contextlib.contextmanager
         def my_container_factory() -> Iterator[DockerContainer]:
-            with DockerContainer("python:3.12-slim") \\
+            with DockerContainer("python:3.12-slim") \
                     .with_command("sleep infinity") as c:
                 c.start()
                 yield c
@@ -112,6 +112,7 @@ def in_container(
     Raises:
         InvalidContainerSpecError: If the arguments don't match any of the
             three supported modes.
+
     """
     container_spec = build_container_spec_from_args(image, path=path, tag=tag, factory=factory)
 
