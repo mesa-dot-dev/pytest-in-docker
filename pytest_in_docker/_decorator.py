@@ -16,7 +16,6 @@ from pytest_in_docker._types import (
     FactorySpec,
     ImageSpec,
     InvalidContainerSpecError,
-    build_container_spec_from_args,
 )
 
 P = ParamSpec("P")
@@ -42,25 +41,39 @@ def in_container(image: str) -> Callable[[Callable[P, T]], Callable[P, T]]: ...
 
 
 @overload
-def in_container(path: str, tag: str) -> Callable[[Callable[P, T]], Callable[P, T]]: ...
+def in_container(*, path: str, tag: str) -> Callable[[Callable[P, T]], Callable[P, T]]: ...
 
 
 @overload
 def in_container(*, factory: ContainerFactory) -> Callable[[Callable[P, T]], Callable[P, T]]: ...
 
 
-def _build_spec(*args: str, factory: ContainerFactory | None, **kwargs: str) -> ContainerSpec:
+def _build_spec(
+    image: str | None,
+    path: str | None,
+    tag: str | None,
+    factory: ContainerFactory | None,
+) -> ContainerSpec:
     """Build a ContainerSpec from the arguments passed to in_container."""
     if factory is not None:
         return FactorySpec(factory=factory)
-    return build_container_spec_from_args(*args, **kwargs)
+    if image is not None:
+        return ImageSpec(image=image)
+    if path is not None and tag is not None:
+        return BuildSpec(path=path, tag=tag)
+    msg = "Expected in_container(image), in_container(path=..., tag=...), or in_container(factory=...)."
+    raise InvalidContainerSpecError(msg)
 
 
 def in_container(
-    *args: str, factory: ContainerFactory | None = None, **kwargs: str,
+    image: str | None = None,
+    *,
+    path: str | None = None,
+    tag: str | None = None,
+    factory: ContainerFactory | None = None,
 ) -> Callable[[Callable[P, T]], Callable[P, T]]:
     """Run this test inside a docker container."""
-    container_spec = _build_spec(*args, factory=factory, **kwargs)
+    container_spec = _build_spec(image=image, path=path, tag=tag, factory=factory)
 
     def decorator(func: Callable[P, T]) -> Callable[P, T]:
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
@@ -79,8 +92,8 @@ def in_container(
                     return _run_in_container(started)
 
             def _run_build_spec(build_spec: BuildSpec) -> T:
-                with DockerImage(path=build_spec.path, tag=build_spec.tag) as image:
-                    return _run_image_spec(ImageSpec(image=str(image)))
+                with DockerImage(path=build_spec.path, tag=build_spec.tag) as built:
+                    return _run_image_spec(ImageSpec(image=str(built)))
 
             def _run_factory_spec(factory_spec: FactorySpec) -> T:
                 with factory_spec.factory() as container:
