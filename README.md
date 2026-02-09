@@ -155,6 +155,19 @@ def test_env_is_set():
 
 A factory is a callable that accepts a `port: int` argument and returns a context manager yielding an already-started `DockerContainer`. The framework passes the communication port automatically — the factory just needs to expose it and run `sleep infinity`.
 
+### Timeouts
+
+Tests running inside containers default to a 30-second timeout. If [pytest-timeout](https://pypi.org/project/pytest-timeout/) is installed, its `timeout` ini setting and `@pytest.mark.timeout` marker are respected automatically:
+
+```python
+import pytest
+
+@pytest.mark.timeout(60)
+@pytest.mark.in_container("python:alpine")
+def test_slow_operation():
+    ...
+```
+
 ## How It Works
 
 When a decorated test runs:
