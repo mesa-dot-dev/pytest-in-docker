@@ -1,5 +1,6 @@
 """The in_container decorator for running tests inside Docker containers."""
 
+import contextlib
 import inspect
 import textwrap
 from collections.abc import Callable
@@ -49,13 +50,16 @@ def in_container(path: str, tag: str) -> Callable[[Callable[P, T]], Callable[P, 
 def in_container(factory: ContainerFactory) -> Callable[[Callable[P, T]], Callable[P, T]]: ...
 
 
-def in_container(*args: Any, **kwargs: Any) -> Callable[[Callable[P, T]], Callable[P, T]]:
-    """Run this test inside a docker container."""
-    container_spec: ContainerSpec
+def _parse_container_spec(*args: str | ContainerFactory, **kwargs: str) -> ContainerSpec:
+    """Build a ContainerSpec from the arguments passed to in_container."""
     if len(args) == 1 and callable(args[0]) and not isinstance(args[0], str):
-        container_spec = FactorySpec(factory=args[0])
-    else:
-        container_spec = build_container_spec_from_args(*args, **kwargs)
+        return FactorySpec(factory=args[0])
+    return build_container_spec_from_args(*args, **kwargs)  # type: ignore[arg-type]
+
+
+def in_container(*args: str | ContainerFactory, **kwargs: str) -> Callable[[Callable[P, T]], Callable[P, T]]:
+    """Run this test inside a docker container."""
+    container_spec = _parse_container_spec(*args, **kwargs)
 
     def decorator(func: Callable[P, T]) -> Callable[P, T]:
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
@@ -83,19 +87,19 @@ def in_container(*args: Any, **kwargs: Any) -> Callable[[Callable[P, T]], Callab
                 try:
                     return _run_in_container(container)
                 finally:
-                    try:
+                    with contextlib.suppress(StopIteration):
                         next(gen)
-                    except StopIteration:
-                        pass
 
-            if isinstance(container_spec, ImageSpec):
-                return _run_image_spec(container_spec)
-            if isinstance(container_spec, BuildSpec):
-                return _run_build_spec(container_spec)
-            if isinstance(container_spec, FactorySpec):
-                return _run_factory_spec(container_spec)
-            msg = "Invalid container specification."
-            raise InvalidContainerSpecError(msg)
+            match container_spec:
+                case ImageSpec():
+                    return _run_image_spec(container_spec)
+                case BuildSpec():
+                    return _run_build_spec(container_spec)
+                case FactorySpec():
+                    return _run_factory_spec(container_spec)
+                case _:
+                    msg = "Invalid container specification."
+                    raise InvalidContainerSpecError(msg)
 
         return wrapper
 

@@ -1,6 +1,8 @@
 """Tests for the factory overload of in_container."""
 
-from collections.abc import Generator
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -8,15 +10,21 @@ from testcontainers.core.container import DockerContainer
 
 from pytest_in_docker import in_container
 
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
+EXPECTED_RETURN = 42
+
 
 def test_in_container_accepts_factory() -> None:
+    """in_container accepts a callable factory and runs the test via rpyc."""
     mock_container = MagicMock(spec=DockerContainer)
 
-    def factory() -> Generator[DockerContainer, None, None]:
+    def factory() -> Generator[DockerContainer]:
         yield mock_container
 
     mock_conn = MagicMock()
-    mock_teleported = MagicMock(return_value=42)
+    mock_teleported = MagicMock(return_value=EXPECTED_RETURN)
     mock_conn.teleport.return_value = mock_teleported
 
     with (
@@ -26,19 +34,20 @@ def test_in_container_accepts_factory() -> None:
 
         @in_container(factory)
         def my_test() -> int:
-            return 42  # pragma: no cover
+            return EXPECTED_RETURN  # pragma: no cover
 
         result = my_test()
 
-    assert result == 42
+    assert result == EXPECTED_RETURN
     mock_conn.teleport.assert_called_once()
 
 
 def test_factory_cleanup_runs_on_success() -> None:
+    """Generator cleanup code runs after a successful test."""
     cleanup_called = False
     mock_container = MagicMock(spec=DockerContainer)
 
-    def factory() -> Generator[DockerContainer, None, None]:
+    def factory() -> Generator[DockerContainer]:
         nonlocal cleanup_called
         yield mock_container
         cleanup_called = True
@@ -61,10 +70,11 @@ def test_factory_cleanup_runs_on_success() -> None:
 
 
 def test_factory_cleanup_runs_on_failure() -> None:
+    """Generator cleanup code runs even when the test raises."""
     cleanup_called = False
     mock_container = MagicMock(spec=DockerContainer)
 
-    def factory() -> Generator[DockerContainer, None, None]:
+    def factory() -> Generator[DockerContainer]:
         nonlocal cleanup_called
         try:
             yield mock_container
@@ -90,5 +100,6 @@ def test_factory_cleanup_runs_on_failure() -> None:
 
 
 def test_string_arg_still_works() -> None:
+    """Passing a string image name still returns a decorator."""
     decorator = in_container("python:alpine")
     assert callable(decorator)

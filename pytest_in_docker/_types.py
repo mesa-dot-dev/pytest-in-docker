@@ -35,7 +35,7 @@ class BuildSpec:
     tag: str
 
 
-ContainerFactory = Callable[[], Generator["DockerContainer", None, None]]
+ContainerFactory = Callable[[], Generator["DockerContainer"]]
 
 
 @dataclass(frozen=True)
