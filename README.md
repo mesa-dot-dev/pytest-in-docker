@@ -120,6 +120,41 @@ def test_across_distros(image: str, expected_id: str):
 
 When `@pytest.mark.in_container()` is called with no arguments, it reads the `image` parameter from `@pytest.mark.parametrize`. This lets you build a compatibility matrix with zero boilerplate.
 
+### Custom Container Factory
+
+When you need to customise the container beyond what the other modes offer — environment variables, volumes, extra ports — pass a factory:
+
+```python
+from contextlib import contextmanager
+from typing import Iterator
+
+from testcontainers.core.container import DockerContainer
+
+from pytest_in_docker import in_container
+from pytest_in_docker._container import RPYC_PORT
+
+
+@contextmanager
+def my_container() -> Iterator[DockerContainer]:
+    with (
+        DockerContainer("python:alpine")
+        .with_command("sleep infinity")
+        .with_exposed_ports(RPYC_PORT)
+        .with_env("APP_ENV", "test") as container
+    ):
+        container.start()
+        yield container
+
+
+@in_container(factory=my_container)
+def test_env_is_set():
+    import os
+
+    assert os.environ["APP_ENV"] == "test"
+```
+
+A factory is any zero-argument callable that returns a context manager yielding an already-started `DockerContainer`. The container must expose `RPYC_PORT` and run `sleep infinity` so the test framework can connect.
+
 ## How It Works
 
 When a decorated test runs:
@@ -170,6 +205,16 @@ Decorator. Builds an image from the Dockerfile at `path`, tags it as `tag`, then
 
 ```python
 @in_container(path="./docker", tag="my-app:test")
+def test_something():
+    ...
+```
+
+### `in_container(factory)`
+
+Decorator. Runs the test inside a container created by `factory`, a `ContainerFactory` — a zero-argument callable returning a context manager that yields a started `DockerContainer`.
+
+```python
+@in_container(factory=my_container)
 def test_something():
     ...
 ```
