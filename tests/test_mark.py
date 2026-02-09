@@ -66,3 +66,13 @@ def test_mark_factory() -> None:
 
     rel_info = platform.freedesktop_os_release()
     assert rel_info["ID"].lower() == "alpine"
+
+
+@pytest.mark.in_container("python:slim-bookworm")
+def test_mark_debian_bookworm() -> None:
+    """Mark-based test runs inside a Debian Bookworm container."""
+    import platform
+
+    rel_info = platform.freedesktop_os_release()
+    assert rel_info["ID"].lower() == "debian"
+    assert "bookworm" in rel_info["VERSION_CODENAME"].lower()

@@ -102,7 +102,6 @@ def _check_python_version(container: DockerContainer, python: pathlib.Path) -> N
         raise ContainerPrepareError(msg)
 
 
-
 def _install_deps(container: DockerContainer, python: pathlib.Path) -> pathlib.Path:
     """Install rpyc and pytest, returning the python path to use.
 
