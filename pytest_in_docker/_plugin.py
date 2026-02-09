@@ -105,7 +105,10 @@ def _get_timeout(pyfuncitem: Function) -> int:
     timeout_marker = pyfuncitem.get_closest_marker("timeout")
     if timeout_marker and timeout_marker.args:
         return int(timeout_marker.args[0])
-    ini_val = pyfuncitem.config.getini("timeout")
+    try:
+        ini_val = pyfuncitem.config.getini("timeout")
+    except ValueError:
+        return 30
     if ini_val:
         return int(ini_val)
     return 30
