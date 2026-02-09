@@ -5,8 +5,10 @@ import pathlib
 import sys
 import tarfile
 import time
+from types import FunctionType
 from typing import TYPE_CHECKING, Any
 
+import cloudpickle
 import rpyc
 
 from pytest_in_docker._types import ContainerPrepareError
@@ -173,76 +175,6 @@ def bootstrap_container(
     )
 
 
-def _make_picklable[T: Callable[..., Any]](func: T) -> T:
-    """Return a copy of *func* that cloudpickle will serialise by value.
-
-    Two things prevent a test function from being naively pickled into a
-    remote container:
-
-    1. cloudpickle pickles importable functions *by reference*
-       (module + qualname), but the test module does not exist in the
-       container.
-    2. pytest's assertion rewriter injects ``@pytest_ar`` into the
-       function's ``__globals__``, and that object drags in the test
-       module itself.
-
-    We fix both by creating a **new** function object whose
-    ``__module__`` is ``"__mp_main__"`` (forces pickle-by-value) and
-    whose ``__globals__`` are a *shared* clean dict stripped of the
-    assertion-rewriter helper.  All sibling callables (same module) are
-    cloned into the same ``clean_globals`` dict so transitive calls
-    between helpers resolve to the patched versions.
-    """
-    import types  # noqa: PLC0415
-
-    original_module = func.__module__
-
-    # First pass: build clean_globals with non-callable entries,
-    # collect names of same-module callables to patch.
-    clean_globals: dict[str, Any] = {}
-    to_patch: list[str] = []
-    for k, v in func.__globals__.items():
-        if k == "@pytest_ar":
-            continue
-        if (
-            isinstance(v, types.FunctionType)
-            and getattr(v, "__module__", None) == original_module
-        ):
-            to_patch.append(k)
-        else:
-            clean_globals[k] = v
-
-    # Second pass: clone callables so they all share clean_globals.
-    for k in to_patch:
-        orig = func.__globals__[k]
-        clone = types.FunctionType(
-            orig.__code__,
-            clean_globals,
-            orig.__name__,
-            orig.__defaults__,
-            orig.__closure__,
-        )
-        clone.__module__ = "__mp_main__"
-        clone.__qualname__ = orig.__qualname__
-        clone.__annotations__ = orig.__annotations__
-        clone.__kwdefaults__ = orig.__kwdefaults__
-        clean_globals[k] = clone
-
-    # Clone the test function itself into the same shared dict.
-    clone = types.FunctionType(
-        func.__code__,
-        clean_globals,
-        func.__name__,
-        func.__defaults__,
-        func.__closure__,
-    )
-    clone.__annotations__ = func.__annotations__
-    clone.__kwdefaults__ = func.__kwdefaults__
-    clone.__module__ = "__mp_main__"
-    clone.__qualname__ = func.__qualname__
-    return clone  # type: ignore[return-value]
-
-
 def run_pickled[T](
     conn: Any,  # noqa: ANN401
     func: Callable[..., T],
@@ -250,9 +182,30 @@ def run_pickled[T](
     **kwargs: Any,  # noqa: ANN401
 ) -> T:
     """Serialize *func* with cloudpickle, send to container, execute there."""
-    import cloudpickle  # noqa: PLC0415
+    module = sys.modules.get(func.__module__)
+    if module is not None:
+        cloudpickle.register_pickle_by_value(module)
 
-    payload = cloudpickle.dumps(_make_picklable(func))
+    # Pickle a shallow copy of the function, excluding pytestmark — it
+    # references host-only objects (e.g. container factories) that can't
+    # be unpickled in the container.  Copying avoids mutating the original.
+    func_copy = FunctionType(
+        func.__code__,
+        func.__globals__,
+        func.__name__,
+        func.__defaults__,
+        func.__closure__,
+    )
+    func_copy.__kwdefaults__ = func.__kwdefaults__
+    func_copy.__dict__.update(
+        {k: v for k, v in func.__dict__.items() if k != "pytestmark"}
+    )
+    try:
+        payload = cloudpickle.dumps(func_copy)
+    finally:
+        if module is not None:
+            cloudpickle.unregister_pickle_by_value(module)
+
     rpickle = conn.modules["pickle"]
     remote_func = rpickle.loads(payload)
     return remote_func(*args, **kwargs)

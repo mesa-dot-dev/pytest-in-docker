@@ -34,4 +34,4 @@ jobs:
           python-version-file: ".python-version"
 
       - name: Run tests
-        run: uv run pytest -n auto -v
+        run: uv run pytest -n 16 -v

@@ -56,6 +56,8 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = [
+    "D", # Test helpers don't need docstrings
+    "PLR2004", # Magic values are fine in test assertions
     "S", # It's tests, no need for security
     "PLC0415", # imports need to be late for pytest_in_docker to work.
 ]
