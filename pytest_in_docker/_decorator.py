@@ -40,11 +40,15 @@ def in_container(image: str) -> Callable[[Callable[P, T]], Callable[P, T]]: ...
 
 
 @overload
-def in_container(*, path: str, tag: str) -> Callable[[Callable[P, T]], Callable[P, T]]: ...
+def in_container(
+    *, path: str, tag: str
+) -> Callable[[Callable[P, T]], Callable[P, T]]: ...
 
 
 @overload
-def in_container(*, factory: ContainerFactory) -> Callable[[Callable[P, T]], Callable[P, T]]: ...
+def in_container(
+    *, factory: ContainerFactory
+) -> Callable[[Callable[P, T]], Callable[P, T]]: ...
 
 
 def in_container(
@@ -116,7 +120,9 @@ def in_container(
             three supported modes.
 
     """
-    container_spec = build_container_spec_from_args(image, path=path, tag=tag, factory=factory)
+    container_spec = build_container_spec_from_args(
+        image, path=path, tag=tag, factory=factory
+    )
 
     def decorator(func: Callable[P, T]) -> Callable[P, T]:
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:

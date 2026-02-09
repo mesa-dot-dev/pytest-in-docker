@@ -28,9 +28,12 @@ def pytest_configure(config: pytest.Config) -> None:
     """Register the in_container marker."""
     config.addinivalue_line(
         "markers",
-        "in_container(image | path+tag | factory): run this test inside a Docker container. "
-        "Pass an image string, path+tag for Dockerfile builds, or factory for custom containers. "
-        "With no arguments, 'image' is read from parametrized args.",
+        "in_container(image | path+tag | factory): "
+        "run this test inside a Docker container. "
+        "Pass an image string, path+tag for Dockerfile builds, "
+        "or factory for custom containers. "
+        "With no arguments, 'image' is read from "
+        "parametrized args.",
     )
 
 
@@ -70,7 +73,9 @@ def _run_test_in_container(
     elif isinstance(container_spec, BuildSpec):
         with (
             DockerImage(path=container_spec.path, tag=container_spec.tag) as image,
-            DockerContainer(str(image)).with_command("sleep infinity").with_exposed_ports(RPYC_PORT) as container,
+            DockerContainer(str(image))
+            .with_command("sleep infinity")
+            .with_exposed_ports(RPYC_PORT) as container,
         ):
             started = container.start()
             remote_func = bootstrap_container(started).teleport(clean)
